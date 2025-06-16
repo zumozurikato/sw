@@ -3,87 +3,96 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>dickmaggot.xyz</title>
+<title>Hello1 Terminal</title>
 <style>
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap');
   html, body {
-    margin: 0; padding: 0;
-    height: 100%;
+    margin: 0; padding: 0; height: 100%;
     background: #111;
     color: white;
-    font-family: monospace, monospace;
+    font-family: 'Source Code Pro', monospace;
     overflow: hidden;
   }
   #enterScreen {
+    position: fixed;
+    inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    background: #111;
+    font-size: 3rem;
     cursor: pointer;
     user-select: none;
-    font-size: 3em;
+    animation: fadeIn 1.5s ease forwards;
     color: white;
-    animation: fadeIn 3s ease forwards;
   }
   #terminal {
     display: none;
+    position: fixed;
+    inset: 0;
     padding: 20px;
-    height: 100vh;
     box-sizing: border-box;
-    overflow-y: auto;
     background: #111;
+    overflow-y: auto;
   }
   #output {
     white-space: pre-wrap;
-    margin-bottom: 10px;
+    line-height: 1.4;
+    min-height: 70vh;
   }
   #inputLine {
-    background: transparent;
-    border: none;
     outline: none;
+    border: none;
+    background: transparent;
     color: white;
-    font-family: monospace;
-    font-size: 1.2em;
+    font-family: inherit;
+    font-size: 1.2rem;
     width: 100%;
+    caret-color: lime;
   }
   #visitCounter {
     position: fixed;
     bottom: 10px;
     right: 10px;
-    font-family: monospace;
-    color: white;
     display: none;
     align-items: center;
+    font-size: 1rem;
     gap: 6px;
+    color: white;
     user-select: none;
   }
   #visitCounter svg {
+    width: 20px; height: 20px;
     fill: white;
-    width: 18px;
-    height: 18px;
   }
-  #gameOverOverlay {
-    display: none;
+  #gameOverScreen {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    inset: 0;
     background: #111;
-    color: red;
-    font-size: 6em;
-    font-weight: bold;
+    display: flex;
     justify-content: center;
     align-items: center;
+    font-size: 5rem;
+    font-weight: bold;
+    color: red;
     opacity: 0;
     pointer-events: none;
-    z-index: 10000;
     user-select: none;
-    font-family: monospace;
+  }
+  #snakeCanvas {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #111;
+  }
+
+  @keyframes fadeIn {
+    from {opacity: 0}
+    to {opacity: 1}
+  }
+  @keyframes fadeOut {
+    from {opacity: 1}
+    to {opacity: 0}
   }
 </style>
 </head>
@@ -93,15 +102,17 @@
 
 <div id="terminal" tabindex="0">
   <div id="output"></div>
-  <input id="inputLine" autocomplete="off" autofocus />
+  <input id="inputLine" autocomplete="off" spellcheck="false" />
 </div>
 
-<div id="visitCounter" title="Visit count">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
-  <span id="countNumber">0</span>
+<div id="visitCounter">
+  <svg viewBox="0 0 24 24"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/><circle cx="12" cy="12" r="2.5"/></svg>
+  <span id="visitCount">0</span>
 </div>
 
-<div id="gameOverOverlay" style="display:flex;"></div>
+<canvas id="snakeCanvas" width="400" height="400"></canvas>
+
+<div id="gameOverScreen">GAME OVER</div>
 
 <script>
   const enterScreen = document.getElementById('enterScreen');
@@ -109,236 +120,225 @@
   const output = document.getElementById('output');
   const inputLine = document.getElementById('inputLine');
   const visitCounter = document.getElementById('visitCounter');
-  const countNumber = document.getElementById('countNumber');
-  const gameOverOverlay = document.getElementById('gameOverOverlay');
-
-  // Fade in "Click to enter" text
-  enterScreen.style.opacity = 0;
-  enterScreen.style.animation = 'fadeIn 3s ease forwards';
+  const visitCountSpan = document.getElementById('visitCount');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const snakeCanvas = document.getElementById('snakeCanvas');
+  const ctx = snakeCanvas.getContext('2d');
 
   // Terminal output helper
-  function appendOutput(text) {
-    output.textContent += text + "\n";
+  function appendOutput(text = '') {
+    output.textContent += text + '\n';
     output.scrollTop = output.scrollHeight;
   }
 
-  // Placeholder visit count fetch - replace with your own API
+  // Initial greeting
+  const welcomeMessage = 'Welcome to the terminal. Type "help" for commands.\n';
+
+  // Visit count dummy fetch (replace with your real API later)
   function fetchVisitCount() {
-    // Just random number demo, replace with real API call
-    let visits = Math.floor(Math.random() * 1000);
-    countNumber.textContent = visits;
+    // Dummy: random between 150 and 170
+    const dummyCount = Math.floor(150 + Math.random() * 20);
+    visitCountSpan.textContent = dummyCount;
+    visitCounter.style.display = 'flex';
   }
 
-  // Terminal commands & state
-  let snakeCanvas = null;
-  let ctx = null;
-  let snake = [];
-  let direction = {x: 0, y: 0};
+  // -- SNAKE GAME VARIABLES --
+  const gridSize = 20;
+  const tileCount = snakeCanvas.width / gridSize;
+  let snake = [{x: 10, y:10}];
+  let snakeLength = 5;
+  let direction = {x:0, y:0};
+  let inputQueue = [];
   let food = null;
-  let cols = 20;
-  let rows = 20;
-  let cellSize = 20;
-  let gameInterval = null;
+  let gameRunning = false;
+  let gameInterval;
 
-  function spawnFood() {
-    let newFood;
-    while(true) {
-      newFood = {
-        x: Math.floor(Math.random() * cols),
-        y: Math.floor(Math.random() * rows)
-      };
-      // Make sure food not on snake
-      if (!snake.some(s => s.x === newFood.x && s.y === newFood.y)) break;
+  // Initialize food position
+  function placeFood() {
+    while(true){
+      const x = Math.floor(Math.random() * tileCount);
+      const y = Math.floor(Math.random() * tileCount);
+      if(!snake.some(s => s.x === x && s.y === y)){
+        food = {x, y};
+        break;
+      }
     }
-    return newFood;
+  }
+
+  function resetGame() {
+    snake = [{x: 10, y:10}];
+    snakeLength = 5;
+    direction = {x: 0, y: 0};
+    inputQueue = [];
+    placeFood();
+    gameRunning = true;
+    snakeCanvas.style.display = 'block';
+  }
+
+  function endGame() {
+    gameRunning = false;
+    clearInterval(gameInterval);
+    showGameOver();
+  }
+
+  function showGameOver() {
+    gameOverScreen.style.opacity = '1';
+    gameOverScreen.style.pointerEvents = 'auto';
+    setTimeout(() => {
+      gameOverScreen.style.opacity = '0';
+      gameOverScreen.style.pointerEvents = 'none';
+      // Hide canvas, show terminal, reset terminal prompt
+      snakeCanvas.style.display = 'none';
+      terminal.style.display = 'block';
+      inputLine.focus();
+      appendOutput('\nGame over. Back to terminal.');
+    }, 2000);
   }
 
   function draw() {
+    // Clear background
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, snakeCanvas.width, snakeCanvas.height);
 
+    // Draw grid (optional, for better look)
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    for(let i=0; i<=tileCount; i++){
+      ctx.beginPath();
+      ctx.moveTo(i*gridSize, 0);
+      ctx.lineTo(i*gridSize, snakeCanvas.height);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, i*gridSize);
+      ctx.lineTo(snakeCanvas.width, i*gridSize);
+      ctx.stroke();
+    }
+
     // Draw food
     ctx.fillStyle = 'red';
-    ctx.fillRect(food.x * cellSize, food.y * cellSize, cellSize, cellSize);
+    ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
 
     // Draw snake
-    ctx.fillStyle = 'white';
-    snake.forEach(part => {
-      ctx.fillRect(part.x * cellSize, part.y * cellSize, cellSize, cellSize);
-    });
+    ctx.fillStyle = '#0f0';
+    for(let segment of snake){
+      ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+    }
   }
 
   function update() {
-    if(direction.x === 0 && direction.y === 0) return; // no movement yet
+    // Process queued inputs (only 1 per update)
+    if(inputQueue.length > 0){
+      const nextDir = inputQueue.shift();
+      // Prevent reverse direction
+      if(! (nextDir.x === -direction.x && nextDir.y === -direction.y)){
+        direction = nextDir;
+      }
+    }
+    if(direction.x === 0 && direction.y === 0) return; // not moving yet
 
-    // Calculate new head position
-    let head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+    // Move snake head
+    const head = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
 
-    // Check wall collision
-    if(head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
-      return gameOver();
+    // Check collisions with walls
+    if(head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount){
+      endGame();
+      return;
     }
 
-    // Check self collision
-    if(snake.some(s => s.x === head.x && s.y === head.y)) {
-      return gameOver();
+    // Check collision with self
+    if(snake.some(seg => seg.x === head.x && seg.y === head.y)){
+      endGame();
+      return;
     }
 
     snake.unshift(head);
 
-    if(head.x === food.x && head.y === food.y) {
-      food = spawnFood();
-    } else {
+    // Eat food?
+    if(head.x === food.x && head.y === food.y){
+      snakeLength++;
+      placeFood();
+    }
+
+    // Trim tail
+    while(snake.length > snakeLength){
       snake.pop();
     }
-
-    draw();
   }
 
-  function startGame() {
-    // Setup canvas
-    snakeCanvas = document.createElement('canvas');
-    snakeCanvas.width = cols * cellSize;
-    snakeCanvas.height = rows * cellSize;
-    snakeCanvas.style.display = 'block';
-    snakeCanvas.style.margin = '20px auto';
-    snakeCanvas.style.background = '#111';
-    terminal.innerHTML = '';
-    terminal.appendChild(snakeCanvas);
-    ctx = snakeCanvas.getContext('2d');
-
-    // Init snake and direction
-    snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
-    direction = {x: 0, y: 0};
-    food = spawnFood();
-
-    draw();
-    if(gameInterval) clearInterval(gameInterval);
-    gameInterval = setInterval(update, 100);
-  }
-
-  function gameOver() {
-    clearInterval(gameInterval);
-
-    // Show the overlay and fade it in
-    gameOverOverlay.textContent = "GAME OVER";
-    gameOverOverlay.style.display = 'flex';
-    gameOverOverlay.style.pointerEvents = 'auto';
-    gameOverOverlay.style.opacity = '0';
-
-    let opacity = 0;
-    let fadeInInterval = setInterval(() => {
-      opacity += 0.05;
-      if (opacity >= 1) {
-        opacity = 1;
-        clearInterval(fadeInInterval);
-
-        // After 2 seconds fade out
-        setTimeout(() => {
-          let fadeOutInterval = setInterval(() => {
-            opacity -= 0.05;
-            if (opacity <= 0) {
-              opacity = 0;
-              clearInterval(fadeOutInterval);
-              gameOverOverlay.style.display = 'none';
-              gameOverOverlay.style.pointerEvents = 'none';
-
-              // Cleanup and return to terminal
-              if (snakeCanvas && snakeCanvas.parentNode) {
-                terminal.removeChild(snakeCanvas);
-                snakeCanvas = null;
-              }
-              terminal.style.display = 'block';
-              inputLine.focus();
-
-              // Reset game state variables for next start
-              direction = { x: 0, y: 0 };
-              snake = [{ x: Math.floor(cols/2), y: Math.floor(rows/2) }];
-              food = spawnFood();
-            }
-            gameOverOverlay.style.opacity = opacity;
-          }, 30);
-        }, 2000);
-      }
-      gameOverOverlay.style.opacity = opacity;
-    }, 30);
-  }
-
-  // Terminal commands
-  function processCommand(cmd) {
-    cmd = cmd.trim().toLowerCase();
-    if(cmd === 'help') {
-      appendOutput('Commands:\nhelp - Show commands\nsnake - Play snake\nclear - Clear terminal');
-    } else if(cmd === 'clear') {
-      output.textContent = '';
-    } else if(cmd === 'snake') {
-      appendOutput('Starting Snake! Use WASD or arrow keys to move. Avoid walls and yourself.');
-      startGame();
-    } else {
-      appendOutput('Unknown command: ' + cmd);
+  // Keyboard control (WASD + arrows)
+  window.addEventListener('keydown', e => {
+    if(!gameRunning) return;
+    let dir;
+    switch(e.key.toLowerCase()){
+      case 'w': case 'arrowup': dir = {x: 0, y: -1}; break;
+      case 'a': case 'arrowleft': dir = {x: -1, y: 0}; break;
+      case 's': case 'arrowdown': dir = {x: 0, y: 1}; break;
+      case 'd': case 'arrowright': dir = {x: 1, y: 0}; break;
+      default: return;
     }
-  }
-
-  // Keyboard for terminal input
-  inputLine.addEventListener('keydown', e => {
-    if(e.key === 'Enter') {
-      const cmd = inputLine.value;
-      appendOutput('> ' + cmd);
-      processCommand(cmd);
-      inputLine.value = '';
+    // Queue inputs, max 2 queued
+    if(inputQueue.length < 2){
+      inputQueue.push(dir);
     }
+    e.preventDefault();
   });
 
-  // Keyboard controls for snake
-  window.addEventListener('keydown', e => {
-    if (!snakeCanvas) return; // no snake game running
-    switch(e.key) {
-      case 'ArrowUp':
-      case 'w':
-      case 'W':
-        if(direction.y !== 1) direction = {x: 0, y: -1};
-        break;
-      case 'ArrowDown':
-      case 's':
-      case 'S':
-        if(direction.y !== -1) direction = {x: 0, y: 1};
-        break;
-      case 'ArrowLeft':
-      case 'a':
-      case 'A':
-        if(direction.x !== 1) direction = {x: -1, y: 0};
-        break;
-      case 'ArrowRight':
-      case 'd':
-      case 'D':
-        if(direction.x !== -1) direction = {x: 1, y: 0};
-        break;
+  // Game loop interval (fixed timing)
+  function startGameLoop(){
+    if(gameInterval) clearInterval(gameInterval);
+    gameInterval = setInterval(() => {
+      update();
+      draw();
+    }, 120);
+  }
+
+  // Terminal logic
+  function handleCommand(cmd){
+    cmd = cmd.trim().toLowerCase();
+    if(cmd === 'help'){
+      appendOutput(`Commands:\n - snake : play snake game\n - clear : clear terminal\n - exit : exit terminal\n - help : show this`);
+    } else if(cmd === 'clear'){
+      output.textContent = '';
+    } else if(cmd === 'exit'){
+      appendOutput('Exiting terminal...');
+      setTimeout(() => {
+        terminal.style.display = 'none';
+        enterScreen.style.display = 'flex';
+      }, 500);
+    } else if(cmd === 'snake'){
+      // Start snake game
+      terminal.style.display = 'none';
+      snakeCanvas.style.display = 'block';
+      resetGame();
+      startGameLoop();
+    } else {
+      appendOutput(`Command not found: ${cmd}`);
+    }
+  }
+
+  // Input line enter handler
+  inputLine.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){
+      const val = inputLine.value;
+      appendOutput('> ' + val);
+      handleCommand(val);
+      inputLine.value = '';
     }
   });
 
   // Enter screen click
   enterScreen.addEventListener('click', () => {
     enterScreen.style.animation = 'fadeOut 1s forwards';
-    enterScreen.style.pointerEvents = 'none';
     setTimeout(() => {
       enterScreen.style.display = 'none';
       terminal.style.display = 'block';
-      visitCounter.style.display = 'flex';
-
-      // Request fullscreen
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen();
-      } else if (document.documentElement.webkitRequestFullscreen) {
-        document.documentElement.webkitRequestFullscreen();
-      } else if (document.documentElement.msRequestFullscreen) {
-        document.documentElement.msRequestFullscreen();
-      }
-
-      appendOutput('Welcome to the terminal. Type "help" for commands.');
       inputLine.focus();
+      appendOutput(welcomeMessage);
       fetchVisitCount();
     }, 1000);
   });
+
 </script>
 
 </body>
