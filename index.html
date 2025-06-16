@@ -1,236 +1,268 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>dickmaggot.xyz</title>
-
-  <!-- Terminal CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery.terminal/css/jquery.terminal.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
-  
-  <style>
-    html, body {
-      margin: 0; padding: 0; height: 100%;
-      background: #0a0a0a;
-      color: #66ffcc;
-      font-family: 'VT323', monospace;
-      overflow: hidden;
-    }
-    #terminal {
-      height: 100vh;
-      width: 100vw;
-      padding: 10px;
-      box-sizing: border-box;
-      opacity: 0;
-      transition: opacity 1s ease;
-      display: none;
-      background: #0a0a0a;
-    }
-    #fullscreenOverlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #0a0a0a;
-      color: #66ffcc;
-      font-family: 'VT323', monospace;
-      font-size: 2em;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-      z-index: 10000;
-      opacity: 1;
-      transition: opacity 1s ease;
-    }
-    #fullscreenOverlay.fade-out {
-      opacity: 0;
-    }
-    #terminal.fade-in {
-      opacity: 1;
-    }
-    /* Snake styles */
-    #snakeCanvas {
-      display: none;
-      background: black;
-      margin-top: 10px;
-      border: 2px solid #66ffcc;
-      image-rendering: pixelated;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scary Bio Site</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; background: #000;
+    color: #fff; font-family: monospace; overflow: hidden;
+  }
+  #enterScreen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #000;
+    cursor: pointer;
+    opacity: 0;
+    animation: fadeIn 2s forwards;
+    font-size: 2em;
+    user-select: none;
+    color: white;
+  }
+  #terminal {
+    display: none;
+    padding: 1em;
+    height: 100vh;
+    background: #111;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+  .fadeOut {
+    animation: fadeOut 1s forwards;
+  }
+  @keyframes fadeOut {
+    to { opacity: 0; }
+  }
+  /* Terminal input styling */
+  #inputLine {
+    display: flex;
+  }
+  #prompt {
+    margin-right: 0.5em;
+  }
+  #cmdInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #0f0;
+    font-family: monospace;
+    flex: 1;
+  }
+</style>
 </head>
 <body>
-
-<div id="fullscreenOverlay">Click to Enter</div>
+<div id="enterScreen">Click to enter</div>
 <div id="terminal"></div>
 
-<!-- Creepy background music -->
-<audio id="bgMusic" loop>
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/17/audio_d4ddc979ca.mp3?filename=spooky-ambient-11056.mp3" type="audio/mpeg">
-</audio>
-
-<!-- Snake game canvas -->
-<canvas id="snakeCanvas" width="300" height="300"></canvas>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jquery.terminal/js/jquery.terminal.min.js"></script>
-
 <script>
-  const overlay = document.getElementById('fullscreenOverlay');
-  const terminal = document.getElementById('terminal');
-  const bgMusic = document.getElementById('bgMusic');
-  const snakeCanvas = document.getElementById('snakeCanvas');
-  let snakePlaying = false;
+const enterScreen = document.getElementById('enterScreen');
+const terminal = document.getElementById('terminal');
 
-  // Snake game logic
-  function playSnake(terminalInstance) {
-    if (snakePlaying) {
-      terminalInstance.echo("Snake is already running!");
-      return;
+function writeLine(text = '') {
+  const line = document.createElement('div');
+  line.textContent = text;
+  terminal.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function writeHtml(html) {
+  const line = document.createElement('div');
+  line.innerHTML = html;
+  terminal.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function typeHelp() {
+  writeLine('Type help for commands');
+}
+
+function initTerminal() {
+  terminal.style.display = 'block';
+  writeLine('Welcome.');
+  typeHelp();
+  showInput();
+}
+
+function showInput() {
+  const inputLine = document.createElement('div');
+  inputLine.id = 'inputLine';
+
+  const prompt = document.createElement('span');
+  prompt.id = 'prompt';
+  prompt.textContent = '>';
+
+  const input = document.createElement('input');
+  input.id = 'cmdInput';
+  input.autofocus = true;
+  input.spellcheck = false;
+
+  inputLine.appendChild(prompt);
+  inputLine.appendChild(input);
+  terminal.appendChild(inputLine);
+  input.focus();
+  terminal.scrollTop = terminal.scrollHeight;
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const cmd = input.value.trim();
+      runCommand(cmd);
+      input.disabled = true;
+      input.remove();
+      prompt.textContent = '>';
+      writeLine(`> ${cmd}`);
+      showInput();
     }
-    snakePlaying = true;
-    snakeCanvas.style.display = 'block';
-    terminalInstance.pause();
+  });
+}
 
-    const ctx = snakeCanvas.getContext('2d');
-    const grid = 15;
-    const tileCount = snakeCanvas.width / grid;
+function runCommand(cmd) {
+  if (!cmd) return;
 
-    let snake = [{x:7, y:7}];
-    let velocity = {x:0, y:0};
-    let apple = {x:5, y:5};
-    let score = 0;
+  switch(cmd.toLowerCase()) {
+    case 'help':
+      writeLine('Commands: help, snake, clear');
+      break;
+    case 'clear':
+      terminal.innerHTML = '';
+      break;
+    case 'snake':
+      startSnake();
+      break;
+    default:
+      writeLine(`Unknown command: ${cmd}`);
+  }
+}
 
-    function draw() {
-      ctx.fillStyle = "black";
-      ctx.fillRect(0,0,snakeCanvas.width,snakeCanvas.height);
+// Minimal Snake game implementation
+function startSnake() {
+  writeLine('Starting Snake game...');
+  writeLine('Use arrow keys to play. Press Esc to exit.');
+  terminal.innerHTML = ''; // Clear terminal for game
 
-      // Draw apple
-      ctx.fillStyle = "red";
-      ctx.fillRect(apple.x * grid, apple.y * grid, grid-2, grid-2);
+  // Setup canvas for snake game
+  const canvas = document.createElement('canvas');
+  canvas.width = 300;
+  canvas.height = 300;
+  canvas.style.background = '#222';
+  canvas.style.display = 'block';
+  canvas.style.margin = '20px auto';
+  terminal.appendChild(canvas);
 
-      // Move snake
-      let head = {x: snake[0].x + velocity.x, y: snake[0].y + velocity.y};
+  const ctx = canvas.getContext('2d');
+  const scale = 15;
+  const rows = canvas.height / scale;
+  const cols = canvas.width / scale;
 
-      // Wrap around edges
-      if(head.x < 0) head.x = tileCount-1;
-      if(head.x > tileCount-1) head.x = 0;
-      if(head.y < 0) head.y = tileCount-1;
-      if(head.y > tileCount-1) head.y = 0;
+  let snake = [];
+  snake[0] = { x: Math.floor(cols/2), y: Math.floor(rows/2) };
 
-      // Check collision with self
-      for(let segment of snake) {
-        if(segment.x === head.x && segment.y === head.y) {
-          gameOver();
-          return;
-        }
-      }
+  let food = {
+    x: Math.floor(Math.random() * cols),
+    y: Math.floor(Math.random() * rows)
+  };
 
-      snake.unshift(head);
+  let dx = 0;
+  let dy = 0;
+  let gameInterval;
 
-      // Check apple collision
-      if(head.x === apple.x && head.y === apple.y) {
-        score++;
-        placeApple();
-      } else {
-        snake.pop();
-      }
+  function draw() {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw snake
-      ctx.fillStyle = "#66ffcc";
-      for(let segment of snake) {
-        ctx.fillRect(segment.x * grid, segment.y * grid, grid-2, grid-2);
-      }
+    // Draw food
+    ctx.fillStyle = 'red';
+    ctx.fillRect(food.x * scale, food.y * scale, scale, scale);
 
-      ctx.fillStyle = "white";
-      ctx.font = "14px VT323, monospace";
-      ctx.fillText("Score: "+score, 10, 290);
+    // Draw snake
+    ctx.fillStyle = 'lime';
+    for (let part of snake) {
+      ctx.fillRect(part.x * scale, part.y * scale, scale, scale);
     }
-
-    function placeApple() {
-      apple = {
-        x: Math.floor(Math.random() * tileCount),
-        y: Math.floor(Math.random() * tileCount)
-      };
-      // Make sure apple is not on snake
-      for(let segment of snake) {
-        if(segment.x === apple.x && segment.y === apple.y) {
-          placeApple();
-          break;
-        }
-      }
-    }
-
-    function gameOver() {
-      terminalInstance.echo("\nGame Over! Final score: " + score);
-      snakePlaying = false;
-      snakeCanvas.style.display = 'none';
-      terminalInstance.resume();
-      document.removeEventListener('keydown', keyDown);
-      clearInterval(gameInterval);
-    }
-
-    function keyDown(e) {
-      switch(e.key) {
-        case 'ArrowUp': if(velocity.y !==1) velocity = {x:0, y:-1}; break;
-        case 'ArrowDown': if(velocity.y !==-1) velocity = {x:0, y:1}; break;
-        case 'ArrowLeft': if(velocity.x !==1) velocity = {x:-1, y:0}; break;
-        case 'ArrowRight': if(velocity.x !==-1) velocity = {x:1, y:0}; break;
-      }
-    }
-
-    document.addEventListener('keydown', keyDown);
-    velocity = {x:0, y:-1};
-    placeApple();
-
-    let gameInterval = setInterval(draw, 100);
   }
 
-  overlay.addEventListener('click', () => {
-    // Go fullscreen
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-    } else if (document.documentElement.webkitRequestFullscreen) {
-      document.documentElement.webkitRequestFullscreen();
-    } else if (document.documentElement.msRequestFullscreen) {
-      document.documentElement.msRequestFullscreen();
+  function update() {
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+    // Check collisions
+    if (
+      head.x < 0 || head.x >= cols ||
+      head.y < 0 || head.y >= rows ||
+      snake.some(part => part.x === head.x && part.y === head.y)
+    ) {
+      clearInterval(gameInterval);
+      writeLine('Game over! Press Enter to continue.');
+      return;
     }
 
-    // Play creepy background music
-    bgMusic.volume = 0.3;
-    bgMusic.play();
+    snake.unshift(head);
 
-    // Fade overlay out and terminal in
-    overlay.classList.add('fade-out');
-    terminal.style.display = 'block';
-    setTimeout(() => {
-      overlay.style.display = 'none';
-      terminal.classList.add('fade-in');
-    }, 1000);
+    if (head.x === food.x && head.y === food.y) {
+      // Eat food
+      food = {
+        x: Math.floor(Math.random() * cols),
+        y: Math.floor(Math.random() * rows)
+      };
+    } else {
+      snake.pop();
+    }
 
-    // Initialize terminal
-    $('#terminal').terminal({
-      help() {
-        this.echo("Available commands: help, status, bio, exit, snake");
-      },
-      status() {
-        this.echo("System: operational\nNo anomalies detected.");
-      },
-      bio() {
-        this.echo("Entity classified.\nAccess restricted.");
-      },
-      exit() {
-        this.echo("Session terminated.");
-      },
-      snake() {
-        playSnake(this);
-      }
-    }, {
-      greetings: 'hello1',
-      prompt: '> '
-    });
+    draw();
+  }
+
+  function keyDownHandler(e) {
+    switch (e.key) {
+      case 'ArrowUp':
+        if (dy === 1) break;
+        dx = 0; dy = -1;
+        break;
+      case 'ArrowDown':
+        if (dy === -1) break;
+        dx = 0; dy = 1;
+        break;
+      case 'ArrowLeft':
+        if (dx === 1) break;
+        dx = -1; dy = 0;
+        break;
+      case 'ArrowRight':
+        if (dx === -1) break;
+        dx = 1; dy = 0;
+        break;
+      case 'Escape':
+        endGame();
+        break;
+    }
+  }
+
+  function endGame() {
+    clearInterval(gameInterval);
+    window.removeEventListener('keydown', keyDownHandler);
+    terminal.innerHTML = '';
+    initTerminal();
+  }
+
+  dx = 1; dy = 0; // start moving right
+  draw();
+  gameInterval = setInterval(update, 150);
+
+  window.addEventListener('keydown', keyDownHandler);
+}
+
+enterScreen.onclick = () => {
+  enterScreen.classList.add('fadeOut');
+  enterScreen.addEventListener('animationend', () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    }
+    enterScreen.style.display = 'none';
+    initTerminal();
   });
+};
 </script>
-
 </body>
 </html>
